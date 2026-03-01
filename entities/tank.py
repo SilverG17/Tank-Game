@@ -27,6 +27,12 @@ class Tank:
         self.max_health = 100
         self.health = 100
 
+        # ===== Life State =====
+        self.alive = True
+        self.exploding = False
+        self.explosion_timer = 0
+        self.explosion_duration = 1.0
+
         # ===== Stats =====
         self.hull_angle = start_angle
         self.gun_angle = start_angle
@@ -101,6 +107,9 @@ class Tank:
         if self.flash_timer > 0:
             self.flash_timer -= dt
 
+        if not self.alive:
+            return
+
         # Rotation for base
         if keys[self.controls['left']]:
             self.hull_angle -= sensitivity * dt
@@ -140,6 +149,13 @@ class Tank:
     # SHOOT
     # =========================================================
     def shoot(self, bullet_image):
+        rad = math.radians(self.gun_angle - 90)
+        barrel_length = 40 
+
+        spawn_pos = pygame.Vector2(
+            self.pos.x + math.cos(rad) * barrel_length,
+            self.pos.y + math.sin(rad) * barrel_length
+        )
         current_time = pygame.time.get_ticks()
         if current_time - self.last_shot_time < self.cooldown_time:
             return None
@@ -150,7 +166,7 @@ class Tank:
             for a in angles:
                 bullets.append(
                     Bullet(
-                        pos=self.pos,
+                        pos=spawn_pos,
                         angle=a,
                         owner=self,
                         image=bullet_image,
@@ -160,7 +176,7 @@ class Tank:
         else:
             bullets.append(
                 Bullet(
-                    pos=self.pos,
+                    pos=spawn_pos,
                     angle=self.gun_angle,
                     owner=self,
                     image=bullet_image,
@@ -185,3 +201,17 @@ class Tank:
         g_rot = pygame.transform.rotate(self.gun_orig, -self.gun_angle)
         surface.blit(h_rot, h_rot.get_rect(center=self.pos))
         surface.blit(g_rot, g_rot.get_rect(center=self.pos))
+        
+        # ===== Explosion =====
+        if self.exploding:
+            progress = self.explosion_timer / self.explosion_duration
+            radius = int(60 * progress)
+
+            pygame.draw.circle(surface, (255, 140, 0),
+                            (int(self.pos.x), int(self.pos.y)), radius)
+            pygame.draw.circle(surface, (255, 255, 0),
+                            (int(self.pos.x), int(self.pos.y)), radius // 2)
+            return
+
+        if not self.alive:
+            return

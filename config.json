@@ -1,0 +1,38 @@
+{
+    "controls": {
+        "player1": {
+            "up": 119,
+            "down": 115,
+            "left": 97,
+            "right": 100,
+            "gun_left": 113,
+            "gun_right": 101,
+            "fire": [
+                32
+            ]
+        },
+        "player2": {
+            "up": 1073741906,
+            "down": 1073741905,
+            "left": 1073741904,
+            "right": 1073741903,
+            "gun_left": 111,
+            "gun_right": 112,
+            "fire": [
+                109
+            ]
+        }
+    },
+    "audio": {
+        "music_volume": 0.40000000000000013,
+        "sfx_volume": 0.6,
+        "bounce_volume": 0.4,
+        "master_mute": false
+    },
+    "gameplay": {
+        "p1_sensitivity": 200,
+        "p2_sensitivity": 200,
+        "max_bullets": 5,
+        "cooldown_time": 0.2
+    }
+}

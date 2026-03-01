@@ -16,6 +16,10 @@ class PlayingState(BaseState):
         self.debug_mode = False
         self.powerup_spawn_timer = 5
         self.powerup_spawn_interval = 5
+        self.alive = True
+        self.exploding = False
+        self.explosion_timer = 0
+        self.explosion_duration = 1.0
 
     def build_controls(self, player):
         raw_controls = self.game.config.get_controls(player)
@@ -211,17 +215,32 @@ class PlayingState(BaseState):
                     self.coins.remove(coin)
                     self.game.audio.play_sfx("coin.mp3")
                     break
+        for tank in self.tanks:
+            if tank.exploding:
+                tank.explosion_timer += dt
 
         # ===== Game Over (HP) =====
         p1 = self.tanks[0]
         p2 = self.tanks[1]
 
-        if p1.health <= 0:
+        if p1.health <= 0 and p1.alive:
+            p1.alive = False
+            p1.exploding = True
+            p1.explosion_timer = 0
+            self.game.audio.play_sfx("explosion.mp3")
+
+        if p2.health <= 0 and p2.alive:
+            p2.alive = False
+            p2.exploding = True
+            p2.explosion_timer = 0
+            self.game.audio.play_sfx("explosion.mp3")
+
+        if not p1.alive and p1.explosion_timer >= p1.explosion_duration:
             self.game.winner = "Player 2"
             self.game.change_state(GameOverState(self.game))
             return
 
-        if p2.health <= 0:
+        if not p2.alive and p2.explosion_timer >= p2.explosion_duration:
             self.game.winner = "Player 1"
             self.game.change_state(GameOverState(self.game))
             return
@@ -389,6 +408,15 @@ class PlayingState(BaseState):
     # DRAW
     # ==========================================
     def draw(self, surface):
+        if self.exploding:
+            # Simple explosion effect (circle growing)
+            radius = int(60 * (self.explosion_timer / self.explosion_duration))
+            pygame.draw.circle(surface, (255, 150, 0), self.rect.center, radius)
+            pygame.draw.circle(surface, (255, 255, 0), self.rect.center, radius // 2)
+            return
+
+        if not self.alive:
+            return
 
         # Vẽ tilemap
         self.game.tile_map.draw(surface)

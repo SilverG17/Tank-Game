@@ -95,6 +95,7 @@ class Game:
         self.audio.load_sfx("coin.mp3", 0.6)
         self.audio.load_sfx("bounce.mp3", 0.4)
         self.audio.load_sfx("nop.mp3", 0.6)
+        self.audio.load_sfx("explosion.mp3", 0.6)
         self.audio.load_music("bg_music.mp3", volume=0.2, loop=True)
         self.audio.set_music_volume(self.config.get_music_volume())
         self.audio.set_sfx_volume(self.config.get_sfx_volume())
