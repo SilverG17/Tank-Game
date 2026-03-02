@@ -1,131 +1,208 @@
-🛡️ Tank Battle: Chaos Maze (Physics Edition)
+# 🛡️ Tank Battle: Chaos Maze (Physics Edition)
 
-A high-octane, 2-player tactical shooter built with Python and Pygame. This project demonstrates core game programming principles, focusing on vector-based movement, AABB collision detection, and reflective ballistics.
+A high-intensity **2-player tactical shooter** built with **Python** and **Pygame**.
+This project focuses on implementing real-time game physics including:
 
-🕹️ 1. Controls
-The game supports two players on a single keyboard with independent turret and hull controls.
+- Vector-based movement
+- AABB collision detection
+- Reflective ballistics
+- Particle-based visual effects
 
-| Action          | Player 1 (Green)   | Player 2 (Red)        |
-| --------------- | ------------------ | --------------------- |
-| Tank Movement   | W, A, S, D         | Up, Down, Left, Right |
-| Turret Rotation | Q, E               | K, L                  |
-| Fire Weapon     | SPACE or F         | ENTER or M            |
-| System          | ESC (Back to Menu) | R (Restart Mission)   |
+---
 
-🔬 2. Physics Implementation
+## 🎮 1. Controls
 
-A. Vector-Based Movement
+The game supports two players on a single keyboard with **independent hull and turret rotation**.
 
-Tanks move based on their current rotation angle $\\theta$. Instead of simple grid movement, we calculate continuous trajectory vectors.
+| Action          | Player 1 (Green) | Player 2 (Red)        |
+| --------------- | ---------------- | --------------------- |
+| Tank Movement   | `W A S D`        | `↑ ↓ ← →`             |
+| Turret Rotation | `Q / E`          | `K / L`               |
+| Fire Weapon     | `SPACE` or `F`   | `ENTER` or `M`        |
+| System Controls | `ESC` (Menu)     | `R` (Restart Mission) |
 
-Mathematical Formula:
+---
 
-&nbsp; velocity.x = speed \\times \\cos(\\theta)
+## 🔬 2. Physics System
 
-&nbsp; velocity.y = speed \\times \\sin(\\theta)
+### A. Vector-Based Movement
 
-Code Snippet:
+Instead of grid-based movement, tanks move using continuous vectors derived from their current rotation angle ( \theta ).
 
-\# Convert degrees to radians and offset by -90 to match sprite orientation
+### Mathematical Model
 
+```
+velocity.x = speed × cos(θ)
+velocity.y = speed × sin(θ)
+```
+
+### Implementation
+
+```python
+# Convert degrees to radians and offset by -90° to match sprite orientation
 rad = math.radians(self.hull_angle - 90)
 
-if keys\[self.controls\['up']]:
+if keys[self.controls['up']]:
+    move_vec = pygame.Vector2(math.cos(rad), math.sin(rad))
+elif keys[self.controls['down']]:
+    move_vec = pygame.Vector2(-math.cos(rad), -math.sin(rad))
 
-&nbsp; # Calculate movement vector using Cosine and Sine
+# Frame-independent movement using delta time (dt)
+new_pos = self.pos + move_vec * (160 * self.speed_boost) * dt
+```
 
-&nbsp; move_vec = pygame.Vector2(math.cos(rad), math.sin(rad))
+✔ Ensures smooth 360° rotation
+✔ Maintains consistent speed across different frame rates
 
-elif keys\[self.controls\['down']]:
+---
 
-&nbsp; move_vec = pygame.Vector2(-math.cos(rad), -math.sin(rad))
+### B. Collision Detection (AABB)
 
-\# Apply delta time (dt) for frame-independent movement
+To prevent tanks from passing through walls, the game uses **Axis-Aligned Bounding Box (AABB)** collision detection.
 
-new_pos = self.pos + move_vec \* (160 \* self.speed_boost) \* dt
+A slightly reduced hitbox is used to improve gameplay smoothness.
 
-B. Collision Detection (AABB)
-
-To prevent tanks from passing through walls, we utilize Axis-Aligned Bounding Box (AABB) logic combined with hitbox inflation for smoother navigation.
-
-Code Snippet:
-
+```python
 def check_collision(self, next_pos, trees):
+    # Create smaller physics hitbox for smoother wall interaction
+    tank_rect = self.hull.get_rect(center=next_pos).inflate(-20, -20)
 
-&nbsp; # Use .inflate() to create a smaller physics hitbox (-20px)
+    for gy in range(start_y, end_y):
+        for gx in range(start_x, end_x):
+            if self.level_map[gy][gx] == 'B':
+                block_rect = pygame.Rect(
+                    gx * TILE_SIZE,
+                    gy * TILE_SIZE,
+                    TILE_SIZE,
+                    TILE_SIZE
+                )
 
-&nbsp; # This allows the tank to "graze" walls without getting stuck.
+                if tank_rect.colliderect(block_rect):
+                    return False  # Block movement
+    return True
+```
 
-&nbsp; tank_rect = self.hull.get_rect(center=next_pos).inflate(-20, -20)
+✔ Prevents wall clipping
+✔ Allows controlled “grazing” against obstacles
 
-&nbsp; # Check collision with Indestructible Rock tiles ('B')
+---
 
-&nbsp; for gy in range(start_y, end_y):
+### C. Ballistics & Reflection Physics
 
-&nbsp; for gx in range(start_x, end_x):
+Bullets reflect off solid surfaces using the **vector reflection formula**:
 
-&nbsp; if self.level_map\[gy]\[gx] == 'B':
-
-&nbsp; block_rect = pygame.Rect(gx \* TILE_SIZE, gy \* TILE_SIZE, TILE_SIZE, TILE_SIZE)
-
-&nbsp; if tank_rect.colliderect(block_rect):
-
-&nbsp; return False # Stop movement
-
-&nbsp; return True
-
-C. Ballistics \& Bouncing (Reflection)
-
-Bullets reflect off walls based on the surface normal vector $\\vec{n}$.
-
-The Reflection Formula:
-
-V_new = V_old - 2(V_old ⋅ n) \* n
+```
+V_new = V_old − 2(V_old · n) n
+```
 
 Where:
 
-● V_old: Incoming velocity vector.
+- `V_old` = incoming velocity vector
+- `n` = surface normal vector
+- `V_new` = reflected velocity
 
-● n: The normal vector of the wall surface.
+✔ Enables realistic bounce mechanics
+✔ Adds tactical depth to gameplay
 
-● V_new: Resulting reflection velocity vector.
+---
 
-✨ 3. Visual Effects (Particle System)
+## ✨ 3. Particle System
 
-We implemented a dynamic Particle System to provide high-quality visual feedback for explosions and combat.
+A lightweight physics-based particle engine enhances visual feedback.
 
-● Explosions: When a tank's health reaches 0, it triggers a ParticleSystem that spawns 50+ particles.
+### Explosion Effects
 
-● Physics: Each particle is a physics object with a randomized velocity vector and a linear decay (fade-out) based on its lifetime.
+- Triggered when tank HP reaches zero
+- Spawns 50+ dynamic particles
 
-🚀 4. Technical Features
+### Particle Behavior
 
-● Dynamic Map Rendering: The arena is generated from a LEVEL_MAP (list of strings), making it easy to design new mazes.
+- Randomized velocity vectors
+- Linear alpha decay over lifetime
+- Independent physics updates
 
-● Destructible Environment: Trees ('T') act as obstacles that can be destroyed after 4 hits, updating the collision map in real-time.
+Result: Responsive and satisfying combat visuals.
 
-● Power-up System: \* ⚡ SPEED: 1.8x movement multiplier.
+---
 
-○ 🛡️ SHIELD: Negates the next incoming damage.
+## 🚀 4. Core Features
 
-○ 🔫 TRIPLE SHOT: Fires three bullets in a spread pattern.
+### 🗺️ Dynamic Map Rendering
 
-🎨 5. Asset Sources
+Maps are generated from a `LEVEL_MAP` (list of strings), enabling fast maze creation and customization.
 
-● Graphics: \* Tank Hulls/Guns: Top-down Tanks by Kenney.nl (CC0).
+Example:
 
-○ Tileset: Top-down Racing/Shooter grass and road tiles.
+```
+B = Rock (Indestructible)
+T = Tree (Destructible)
+```
 
-● Audio: \* fire.mp3, hit.mp3, coin.mp3 - Royalty-free arcade SFX.
+---
 
-○ explosion.mp3 - Custom synthesized explosion sound.
+### 🌲 Destructible Environment
 
-● Fonts: Impact (Titles), Consolas (Scores).
+- Trees (`'T'`) require 4 hits to destroy
+- Collision map updates in real time
 
-🛠️ 6. How to Run
+---
 
-Ensure you have Python 3.10+ and Pygame installed:
+### ⚡ Power-Up System
 
-1.pip install pygame
+| Power-Up       | Effect                              |
+| -------------- | ----------------------------------- |
+| ⚡ SPEED       | 1.8× movement multiplier            |
+| 🛡️ SHIELD      | Negates next incoming damage        |
+| 🔫 TRIPLE SHOT | Fires 3 bullets in a spread pattern |
 
-2.python main.py
+---
+
+## 🎨 5. Assets & Credits
+
+### Graphics
+
+- Tank Hulls & Guns: Top-down Tanks by **Kenney.nl** (CC0)
+- Tileset: Top-down racing/shooter grass & road tiles
+
+### Audio
+
+- `fire.mp3`, `hit.mp3`, `coin.mp3` — Royalty-free arcade SFX
+- `explosion.mp3` — Custom synthesized effect
+
+### Fonts
+
+- Impact (Titles)
+- Consolas (UI & Scores)
+
+---
+
+## 🛠️ 6. Installation & Running
+
+### Requirements
+
+- Python 3.10+
+- Pygame
+
+### Install Dependencies
+
+```bash
+pip install pygame
+```
+
+### Run the Game
+
+```bash
+python main.py
+```
+
+---
+
+## 📚 Learning Objectives
+
+This project demonstrates:
+
+- Vector mathematics in game physics
+- Collision detection systems
+- Frame-rate independent motion
+- Real-time particle simulation
+- Modular game state architecture
