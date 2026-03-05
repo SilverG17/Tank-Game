@@ -11,6 +11,7 @@ PREVIEW_SIZE = (400, 250)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MAP_FOLDER = os.path.join(BASE_DIR, "maps")
 IMAGE_FOLDER = os.path.join(BASE_DIR, "image")
+SAVE_FOLDER = os.path.join(BASE_DIR, "image\Maps")
 
 # ==============================
 # LOAD MAP FILE
@@ -90,7 +91,7 @@ def export_all_maps():
         # scale về preview size
         preview = pygame.transform.scale(rendered, PREVIEW_SIZE)
         name = file.replace(".txt", ".png")
-        save_path = os.path.join(IMAGE_FOLDER, name)
+        save_path = os.path.join(SAVE_FOLDER, name)
         pygame.image.save(preview, save_path)
         print(f"Saved preview: {name}")
     pygame.quit()

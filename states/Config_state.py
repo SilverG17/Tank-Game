@@ -1,8 +1,9 @@
 import pygame
 
 from states.base_state import BaseState
-from constants import Color
+from constants import COLORS
 from states.start_state import StartState
+from UI.menu_drawer import MenuDrawer
 
 class ConfigState(BaseState):
     def __init__(self, game):
@@ -10,6 +11,8 @@ class ConfigState(BaseState):
         self.title_font = game.font_big
         self.option_font = game.font_small
         self.options = [
+            "RESOLUTION",
+            "FULLSCREEN",
             "MUSIC VOLUME",
             "SFX VOLUME",
             "PLAYER 1 CONTROLS",
@@ -17,6 +20,16 @@ class ConfigState(BaseState):
             "TOGGLE MUTE",
             "BACK"
         ]
+        self.resolutions = [
+            (854, 480),
+            (1024, 576),
+            (1280, 720),
+            (1366, 768),
+            (1600, 900),
+            (1920, 1080)
+        ]
+        current = self.game.config.get_resolution()
+        self.res_index = self.resolutions.index(current) if current in self.resolutions else 1
         self.hold_delay = 0.15
         self.hold_timer = self.hold_delay
         self.selected = 0
@@ -46,7 +59,6 @@ class ConfigState(BaseState):
                         action = self.actions[self.control_selected]
                         current = self.game.config.data["controls"][player_key].get(action)
 
-                        # luôn lưu dạng list[int]
                         if isinstance(current, list):
                             if new_key not in current:
                                 current.append(new_key)
@@ -92,6 +104,13 @@ class ConfigState(BaseState):
                 if event.key == pygame.K_RETURN:
                     self.activate_option()
 
+    def change_resolution(self, direction):
+        self.res_index = (self.res_index + direction) % len(self.resolutions)
+        w, h = self.resolutions[self.res_index]
+
+        self.game.config.set_resolution(w, h)
+        self.game.create_window()
+
     def enter_control_menu(self, player):
         self.control_mode = True
         self.control_player = player
@@ -120,68 +139,97 @@ class ConfigState(BaseState):
         elif self.options[self.selected] == "PLAYER 2 CONTROLS":
             self.enter_control_menu(2)
 
+        elif self.options[self.selected] == "FULLSCREEN":
+            self.game.config.toggle_fullscreen()
+            self.game.create_window()
+
+        elif self.options[self.selected] == "RESOLUTION":
+            self.res_index = (self.res_index + 1) % len(self.resolutions)
+            w, h = self.resolutions[self.res_index]
+
+            self.game.config.set_resolution(w, h)
+            self.game.create_window()
+
     # ==========================
     # DRAW
     # ==========================
     def draw(self, surface):
-        surface.fill((20, 20, 40))
-        width = surface.get_width()
-        title = self.title_font.render("SETTINGS", True, Color.YELLOW)
-        surface.blit(
-            title,
-            (width // 2 - title.get_width() // 2, 80)
-        )
         if self.control_mode:
-            self.draw_control_menu(surface)
-            return
-        for i, option in enumerate(self.options):
-            color = Color.WHITE
-            if i == self.selected:
-                color = Color.CYAN
-            text = self.option_font.render(option, True, color)
-            y = 200 + i * 60
-            surface.blit(
-                text,
-                (width // 2 - text.get_width() // 2, y)
-            )
-
-            # ===== DRAW VOLUME BAR =====
-            if option == "MUSIC VOLUME":
-                value = self.game.config.get_music_volume()
-                self.draw_bar(surface, value, y + 30)
-            if option == "SFX VOLUME":
-                value = self.game.config.get_sfx_volume()
-                self.draw_bar(surface, value, y + 30)
+            MenuDrawer.draw_control_menu(surface, self.game, self)
+        else:
+            MenuDrawer.draw_settings(surface, self.game, self)
 
     def draw_bar(self, surface, value, y):
         width = surface.get_width()
-        bar_width = 300
-        bar_height = 15
-        x = width // 2 - bar_width // 2
 
-        # nền
-        pygame.draw.rect(surface, (80, 80, 80),
-                        (x, y, bar_width, bar_height))
+        bar_width = 220
+        bar_height = 14
 
-        # phần volume
-        pygame.draw.rect(surface, Color.GREEN,
-                        (x, y, bar_width * value, bar_height))
+        x = width // 2 + 80
+
+        # background
+        pygame.draw.rect(surface, (70, 70, 70), (x, y, bar_width, bar_height))
+
+        # filled
+        pygame.draw.rect(
+            surface,
+            COLORS.GREEN,
+            (x, y, int(bar_width * value), bar_height)
+        )
+
+        # border
+        pygame.draw.rect(surface, COLORS.WHITE, (x, y, bar_width, bar_height), 2)
         
     def draw_control_menu(self, surface):
-        surface.fill((20, 20, 40))
+        MenuDrawer.draw_background(surface)
         width = surface.get_width()
+
+        # ======================
+        # TITLE
+        # ======================
         title = self.title_font.render(
             f"PLAYER {self.control_player} CONTROLS",
             True,
-            Color.YELLOW
+            COLORS.YELLOW
         )
+
         surface.blit(
             title,
             (width // 2 - title.get_width() // 2, 80)
         )
+
+        # ======================
+        # MENU LAYOUT
+        # ======================
+        menu_x = width // 2 - 220
+        value_x = width // 2 + 60
+        start_y = 200
+        row_height = 50
+
         controls = self.game.config.get_controls(self.control_player)
+
+        # ======================
+        # DRAW ACTIONS
+        # ======================
         for i, action in enumerate(self.actions):
+
+            y = start_y + i * row_height
+
+            # selected color
+            color = COLORS.GRAY
+            if i == self.control_selected:
+                color = COLORS.CYAN
+
+            # action name
+            action_text = self.option_font.render(
+                action.upper(),
+                True,
+                color
+            )
+
+            # key display
             value = controls[action]
+
             if isinstance(value, list):
                 key_name = ", ".join(
                     pygame.key.name(k).upper() for k in value
@@ -189,27 +237,50 @@ class ConfigState(BaseState):
             elif isinstance(value, int):
                 key_name = pygame.key.name(value).upper()
             else:
-                key_name = str(value).upper()
-            text_str = f"{action.upper()}: {key_name}"
-            color = Color.WHITE
-            if i == self.control_selected:
-                color = Color.CYAN
-            text = self.option_font.render(text_str, True, color)
-            y = 200 + i * 50
-            surface.blit(
-                text,
-                (width // 2 - text.get_width() // 2, y)
+                key_name = "-"
+
+            key_text = self.option_font.render(
+                key_name,
+                True,
+                COLORS.WHITE
             )
+
+            surface.blit(action_text, (menu_x, y))
+            surface.blit(key_text, (value_x, y))
+
+            # selection arrow
+            if i == self.control_selected:
+                arrow = self.option_font.render("►", True, COLORS.CYAN)
+                surface.blit(arrow, (menu_x - 40, y))
+
+        # ======================
+        # WAITING FOR KEY
+        # ======================
         if self.waiting_for_key:
             wait_text = self.option_font.render(
-                "Press a key...",
+                "PRESS A KEY...",
                 True,
-                Color.RED
+                COLORS.RED
             )
+
             surface.blit(
                 wait_text,
-                (width // 2 - wait_text.get_width() // 2, 500)
+                (width // 2 - wait_text.get_width() // 2, 520)
             )
+
+        # ======================
+        # HINT TEXT
+        # ======================
+        hint = self.option_font.render(
+            "ENTER: CHANGE   |   DEL: REMOVE   |   ESC: BACK",
+            True,
+            COLORS.GRAY
+        )
+
+        surface.blit(
+            hint,
+            (width // 2 - hint.get_width() // 2, 650)
+        )
 
     # ==========================
     # ADJUST VOLUME
@@ -235,14 +306,33 @@ class ConfigState(BaseState):
     def update(self, dt):
         keys = pygame.key.get_pressed()
         option = self.options[self.selected]
-        if option in ["MUSIC VOLUME", "SFX VOLUME"]:
+        if option in ["MUSIC VOLUME", "SFX VOLUME", "RESOLUTION", "FULLSCREEN"]:
             if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]:
                 self.hold_timer -= dt
                 if self.hold_timer <= 0:
-                    if keys[pygame.K_LEFT]:
-                        self.adjust_value(-0.02)
-                    if keys[pygame.K_RIGHT]:
-                        self.adjust_value(0.02)
+
+                    if option == "MUSIC VOLUME":
+                        if keys[pygame.K_LEFT]:
+                            self.adjust_value(-0.02)
+                        if keys[pygame.K_RIGHT]:
+                            self.adjust_value(0.02)
+
+                    elif option == "SFX VOLUME":
+                        if keys[pygame.K_LEFT]:
+                            self.adjust_value(-0.02)
+                        if keys[pygame.K_RIGHT]:
+                            self.adjust_value(0.02)
+
+                    elif option == "RESOLUTION":
+                        if keys[pygame.K_LEFT]:
+                            self.change_resolution(-1)
+                        if keys[pygame.K_RIGHT]:
+                            self.change_resolution(1)
+
+                    elif option == "FULLSCREEN":
+                        self.game.config.toggle_fullscreen()
+                        self.game.create_window()
+
                     self.hold_timer = self.hold_delay
             else:
                 self.hold_timer = 0

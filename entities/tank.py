@@ -1,7 +1,9 @@
 import pygame
 import math
 
+from utils.helpers import key_pressed
 from entities.bullet import Bullet
+from constants import TURRET_OFFSETS
 
 class Tank:
     def __init__(
@@ -10,6 +12,8 @@ class Tank:
         controls,
         color,
         name,
+        hull_style,
+        gun_style,
         images,
         tile_size,
         level_map,
@@ -26,16 +30,18 @@ class Tank:
         self.bounds_rect = bounds_rect
         self.max_health = 100
         self.health = 100
+        self.turret_offset = pygame.Vector2(TURRET_OFFSETS[hull_style])
 
         # ===== Life State =====
         self.alive = True
         self.exploding = False
         self.explosion_timer = 0
-        self.explosion_duration = 1.0
+        self.explosion_duration = 2.0
+        self.explosion_frame = 0
 
         # ===== Stats =====
         self.hull_angle = start_angle
-        self.gun_angle = start_angle
+        self.turret_angle = 0
         self.health = 100
         self.point = 0
         self.flash_timer = 0
@@ -54,18 +60,34 @@ class Tank:
 
         # ===== Images =====
         scale_factor = 0.8  
+
         hull_size = (
             int(images["hull"].get_width() * scale_factor),
             int(images["hull"].get_height() * scale_factor)
         )
+
         self.hull_orig = pygame.transform.smoothscale(images["hull"], hull_size)
+
         gun_size = (
             int(images["gun"].get_width() * scale_factor),
             int(images["gun"].get_height() * scale_factor)
         )
+
         self.gun_orig = pygame.transform.smoothscale(images["gun"], gun_size)
-        self.hull = self.hull_orig.copy()
-        self.hull.fill(color, special_flags=pygame.BLEND_MULT)
+
+        # ===== Apply color tint =====
+        if color is None:
+            # Default color (original PNG)
+            self.hull = self.hull_orig.copy()
+            self.gun = self.gun_orig.copy()
+        else:
+            # Apply tint
+            self.hull = self.hull_orig.copy()
+            self.hull.fill(color, special_flags=pygame.BLEND_MULT)
+
+            self.gun = self.gun_orig.copy()
+            self.gun.fill(color, special_flags=pygame.BLEND_MULT)
+
         self.rect = self.hull.get_rect(center=self.pos)
 
     # =========================================================
@@ -74,7 +96,9 @@ class Tank:
     def check_collision(self, next_pos, trees):
         if not self.bounds_rect.collidepoint(next_pos):
             return False
-        tank_rect = self.hull.get_rect(center=next_pos).inflate(-20, -20)
+        tank_rect = pygame.Rect(0,0,0,0)
+        tank_rect = self.get_hitbox().copy()
+        tank_rect.center = next_pos
 
         # Check rock collision
         start_x = max(0, int((next_pos.x - self.tile_size) // self.tile_size))
@@ -107,33 +131,57 @@ class Tank:
         if self.flash_timer > 0:
             self.flash_timer -= dt
 
+        # Explosion update
+        if self.exploding:
+            self.explosion_timer += dt
+
+            frame_count = len(self.game.EXPLOSION_FRAMES)
+
+            self.explosion_frame = int(
+                (self.explosion_timer / self.explosion_duration) * frame_count
+            )
+
+            if self.explosion_frame >= frame_count:
+                self.explosion_frame = frame_count - 1
+
         if not self.alive:
             return
 
         # Rotation for base
-        if keys[self.controls['left']]:
+        if key_pressed(keys, self.controls['left']):
             self.hull_angle -= sensitivity * dt
-        if keys[self.controls['right']]:
+        if key_pressed(keys, self.controls['right']):
             self.hull_angle += sensitivity * dt
-        rad = math.radians(self.hull_angle - 90)
 
         # Rotation for gun
         gun_rotate_speed = sensitivity * dt
-        if keys[self.controls['gun_left']]:
-            self.gun_angle -= gun_rotate_speed
-        if keys[self.controls['gun_right']]:
-            self.gun_angle += gun_rotate_speed
+        if key_pressed(keys, self.controls['gun_left']):
+            self.turret_angle -= gun_rotate_speed
+        if key_pressed(keys, self.controls['gun_right']):
+            self.turret_angle += gun_rotate_speed
 
+        rad = math.radians(self.hull_angle - 90)
         move_vec = pygame.Vector2(0, 0)
-        if keys[self.controls['up']]:
+        if key_pressed(keys, self.controls['up']):
             move_vec = pygame.Vector2(math.cos(rad), math.sin(rad))
-        elif keys[self.controls['down']]:
+
+        elif key_pressed(keys, self.controls['down']):
             move_vec = pygame.Vector2(-math.cos(rad), -math.sin(rad))
         if move_vec.length() > 0:
-            new_pos = self.pos + move_vec * (160 * self.speed_boost) * dt
-            if self.check_collision(new_pos, trees):
-                self.pos = new_pos
-                self.rect.center = self.pos
+            move_vec = move_vec.normalize()
+            velocity = move_vec * (160 * self.speed_boost) * dt
+
+            # --- Move X axis first ---
+            new_pos_x = pygame.Vector2(self.pos.x + velocity.x, self.pos.y)
+            if self.check_collision(new_pos_x, trees):
+                self.pos.x = new_pos_x.x
+
+            # --- Then move Y axis ---
+            new_pos_y = pygame.Vector2(self.pos.x, self.pos.y + velocity.y)
+            if self.check_collision(new_pos_y, trees):
+                self.pos.y = new_pos_y.y
+
+            self.rect.center = self.pos
 
         # Update powerup timers
         for key in self.powerup_timers:
@@ -149,20 +197,32 @@ class Tank:
     # SHOOT
     # =========================================================
     def shoot(self, bullet_image):
-        rad = math.radians(self.gun_angle - 90)
-        barrel_length = 40 
+        # Final turret direction
+        gun_world_angle = self.hull_angle + self.turret_angle
+        rad = math.radians(gun_world_angle - 90)
+
+        barrel_length = 40
 
         spawn_pos = pygame.Vector2(
             self.pos.x + math.cos(rad) * barrel_length,
             self.pos.y + math.sin(rad) * barrel_length
         )
+
         current_time = pygame.time.get_ticks()
         if current_time - self.last_shot_time < self.cooldown_time:
             return None
+
         self.last_shot_time = current_time
+
         bullets = []
+
         if self.powerup_timers["TRIPLE"] > 0:
-            angles = [self.gun_angle - 15, self.gun_angle, self.gun_angle + 15]
+            angles = [
+                gun_world_angle - 15,
+                gun_world_angle,
+                gun_world_angle + 15
+            ]
+
             for a in angles:
                 bullets.append(
                     Bullet(
@@ -173,45 +233,59 @@ class Tank:
                         game=self.game
                     )
                 )
+
         else:
             bullets.append(
                 Bullet(
                     pos=spawn_pos,
-                    angle=self.gun_angle,
+                    angle=gun_world_angle,
                     owner=self,
                     image=bullet_image,
                     game=self.game
                 )
             )
+
         return bullets
 
     # =========================================================
     # DRAW
     # =========================================================
     def draw(self, surface):
-        if self.flash_timer > 0 and int(self.flash_timer * 15) % 2 == 0:
+        # ===== EXPLOSION =====
+        if self.exploding:
+            frame = self.game.EXPLOSION_FRAMES[self.explosion_frame]
+            rect = frame.get_rect(center=self.pos)
+            surface.blit(frame, rect)
             return
+
+        # ===== HULL =====
+        h_rot = pygame.transform.rotate(self.hull, -self.hull_angle)
+        h_rect = h_rot.get_rect(center=self.pos)
+        surface.blit(h_rot, h_rect)
+
+        # ===== TURRET POSITION =====
+        rotated_offset = self.turret_offset.rotate(self.hull_angle)
+        gun_pos = self.pos + rotated_offset
+
+        # ===== FINAL GUN ANGLE =====
+        gun_world_angle = self.hull_angle + self.turret_angle
+
+        # ===== DRAW GUN =====
+        g_rot = pygame.transform.rotate(self.gun, -gun_world_angle)
+        g_rect = g_rot.get_rect(center=gun_pos)
+
+        surface.blit(g_rot, g_rect)
+
+        # ===== POWERUP EFFECTS =====
         if self.has_shield:
             pygame.draw.circle(surface, (0, 255, 255),
                                (int(self.pos.x), int(self.pos.y)), 35, 2)
         if self.speed_boost > 1.0:
             pygame.draw.circle(surface, (255, 255, 0),
                                (int(self.pos.x), int(self.pos.y)), 30, 1)
-        h_rot = pygame.transform.rotate(self.hull, -self.hull_angle)
-        g_rot = pygame.transform.rotate(self.gun_orig, -self.gun_angle)
-        surface.blit(h_rot, h_rot.get_rect(center=self.pos))
-        surface.blit(g_rot, g_rot.get_rect(center=self.pos))
-        
-        # ===== Explosion =====
-        if self.exploding:
-            progress = self.explosion_timer / self.explosion_duration
-            radius = int(60 * progress)
-
-            pygame.draw.circle(surface, (255, 140, 0),
-                            (int(self.pos.x), int(self.pos.y)), radius)
-            pygame.draw.circle(surface, (255, 255, 0),
-                            (int(self.pos.x), int(self.pos.y)), radius // 2)
-            return
 
         if not self.alive:
             return
+        
+    def get_hitbox(self):
+        return self.rect.inflate(-20, 0)

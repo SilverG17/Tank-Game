@@ -1,34 +1,35 @@
 import pygame
 import sys
 
-from constants import WIDTH, HEIGHT, FPS
-from game import Game   
+from constants import FPS
+from game import Game
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Tank Battle")
+
+    game = Game(None)
+
     clock = pygame.time.Clock()
-    game = Game(screen)
-    running = True
-    while running:
+
+    while game.running:
         dt = clock.tick(FPS) / 1000
 
-        # ===== LẤY EVENTS =====
         events = pygame.event.get()
-
-        # ===== XỬ LÝ EVENTS CHO STATE =====
         game.state.handle_events(events)
 
-        # ===== UPDATE INPUT SYSTEM =====
         game.input.update()
+
         if game.input.quit_requested:
-            running = False
+            game.running = False
+
         game.update(dt)
         game.draw()
+
         pygame.display.flip()
+
     pygame.quit()
     sys.exit()
+
 
 if __name__ == "__main__":
     main()

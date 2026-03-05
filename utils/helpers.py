@@ -28,3 +28,27 @@ def grid_to_world(gx, gy, tile_size):
 
 def world_to_grid(x, y, tile_size):
     return int(x // tile_size), int(y // tile_size)
+
+# ==========================================
+# INPUT HELPERS
+# ==========================================
+def key_pressed(keys, bind):
+    """
+    Check if a key binding is pressed.
+    Supports:
+        int  -> single key
+        list -> multiple keys
+    """
+    if isinstance(bind, list):
+        return any(keys[k] for k in bind)
+    return keys[bind]
+
+
+def key_event_match(event_key, bind):
+    """
+    Check if a KEYDOWN event matches a binding.
+    Works with int or list.
+    """
+    if isinstance(bind, list):
+        return event_key in bind
+    return event_key == bind

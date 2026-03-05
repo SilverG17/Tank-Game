@@ -3,12 +3,15 @@
         "player1": {
             "up": 119,
             "down": 115,
-            "left": 97,
+            "left": [
+                97
+            ],
             "right": 100,
             "gun_left": 113,
             "gun_right": 101,
             "fire": [
-                32
+                32,
+                102
             ]
         },
         "player2": {
@@ -19,12 +22,13 @@
             "gun_left": 111,
             "gun_right": 112,
             "fire": [
-                109
+                109,
+                13
             ]
         }
     },
     "audio": {
-        "music_volume": 0.40000000000000013,
+        "music_volume": 0.42000000000000015,
         "sfx_volume": 0.6,
         "bounce_volume": 0.4,
         "master_mute": false
@@ -34,5 +38,12 @@
         "p2_sensitivity": 200,
         "max_bullets": 5,
         "cooldown_time": 0.2
+    },
+    "video": {
+        "fullscreen": false,
+        "resolution": [
+            1280,
+            720
+        ]
     }
 }

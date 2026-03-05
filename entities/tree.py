@@ -32,7 +32,7 @@ class Tree:
 
     def get_hitbox(self):
         return pygame.Rect(
-            self.rect.centerx - 12,
+            self.rect.centerx - 15,
             self.rect.bottom - 28,
             24,
             28

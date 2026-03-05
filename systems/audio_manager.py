@@ -50,7 +50,9 @@ class AudioManager:
     # ==========================================
     def play_sfx(self, name):
         if name not in self.sounds:
-            self.load_sfx(name)
+            sound = self.load_sfx(name)
+            if sound is None:
+                return
 
         data = self.sounds.get(name)
         if data:

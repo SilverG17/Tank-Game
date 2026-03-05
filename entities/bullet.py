@@ -62,4 +62,9 @@ class Bullet:
         surface.blit(self.image, self.rect)
 
     def get_hitbox(self):
-        return self.rect.inflate(-50, -50)
+        return pygame.Rect(
+            self.pos.x - 3,
+            self.pos.y - 3,
+            6,
+            6
+        )

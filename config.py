@@ -32,6 +32,10 @@ class Config:
             "bounce_volume": 0.4,
             "master_mute": False
         },
+        "video": {
+            "fullscreen": False,
+            "resolution": [800, 600]
+        },
         "gameplay": {
             "p1_sensitivity": 200,
             "p2_sensitivity": 200,
@@ -48,9 +52,23 @@ class Config:
         if os.path.exists(self.config_file):
             try:
                 with open(self.config_file, "r") as f:
-                    return json.load(f)
+                    data = json.load(f)
+
+                default = copy.deepcopy(self.DEFAULT_CONFIG)
+
+                # merge defaults
+                for category in default:
+                    if category not in data:
+                        data[category] = default[category]
+                    else:
+                        for key in default[category]:
+                            data[category].setdefault(key, default[category][key])
+
+                return data
+
             except Exception:
                 print("Error loading config, using defaults")
+
         return copy.deepcopy(self.DEFAULT_CONFIG)
 
     def save_config(self):
@@ -64,25 +82,55 @@ class Config:
     # Key Helpers
     # -------------------------
     def key_to_string(self, key):
+        if isinstance(key, list):
+            return ", ".join(pygame.key.name(k) for k in key)
         return pygame.key.name(key)
 
     def key_list_to_string(self, keys):
-        return ", ".join(pygame.key.name(k).upper() for k in keys)
+        if isinstance(keys, list):
+            return ", ".join(pygame.key.name(k).upper() for k in keys)
+        return pygame.key.name(keys).upper()
 
     # -------------------------
     # Controls
     # -------------------------
     def get_controls(self, player):
         return self.data["controls"][f"player{player}"]
+    
+    # ==========================
+    # Video
+    # ==========================
+    def get_resolution(self):
+        return tuple(self.data["video"]["resolution"])
+
+    def is_fullscreen(self):
+        return self.data["video"].get("fullscreen", False)
+
+    def set_resolution(self, width, height):
+        self.data["video"]["resolution"] = [width, height]
+        self.save_config()
+
+    def toggle_fullscreen(self):
+        current = self.data["video"].get("fullscreen", False)
+        self.data["video"]["fullscreen"] = not current
+        self.save_config()
 
     # -------------------------
     # Audio
     # -------------------------
     def get_music_volume(self):
         return self.data["audio"]["music_volume"]
+    
+    def set_music_volume(self, value):
+        self.data["audio"]["music_volume"] = max(0, min(1, value))
+        self.save_config()
 
     def get_sfx_volume(self):
         return self.data["audio"]["sfx_volume"]
+    
+    def set_sfx_volume(self, value):
+        self.data["audio"]["sfx_volume"] = max(0, min(1, value))
+        self.save_config()
 
     # -------------------------
     # Gameplay

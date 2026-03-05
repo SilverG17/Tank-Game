@@ -1,6 +1,5 @@
 import pygame
 
-
 class CollisionSystem:
     def __init__(self):
         pass
@@ -13,34 +12,36 @@ class CollisionSystem:
         return rect1.colliderect(rect2)
 
     # ==========================================
-    # BULLET VS TREES
+    # GENERIC RECT VS OBJECT LIST
     # ==========================================
-    def bullet_vs_trees(self, bullet, trees):
+    def rect_vs_objects(self, rect, objects):
         """
-        Return True if bullet hits tree
+        Check collision between a rect and a list of objects
+        that contain .rect
         """
-        for tree in trees:
-            if tree.rect.colliderect(bullet.rect):
-                return tree
+        for obj in objects:
+            if self.rect_collision(rect, obj.rect):
+                return obj
         return None
 
     # ==========================================
+    # BULLET VS TREES
+    # ==========================================
+    def bullet_vs_trees(self, bullet, trees):
+        return self.rect_vs_objects(bullet.rect, trees)
+    
+    # ==========================================
     # BULLET VS TANK
     # ==========================================
-    def bullet_vs_tank(self, bullet, tank):
-        if tank.rect.colliderect(bullet.rect):
-            return True
-        return False
+    def bullet_vs_trees(self, bullet, trees):
+        return self.rect_vs_objects(bullet.rect, trees)
 
     # ==========================================
     # TANK VS TREES (movement blocking)
     # ==========================================
     def tank_vs_trees(self, tank, trees):
-        for tree in trees:
-            if tank.rect.colliderect(tree.rect):
-                return tree
-        return None
-
+        return self.rect_vs_objects(tank.rect, trees)
+    
     # ==========================================
     # BULLET VS BULLET
     # ==========================================
@@ -48,6 +49,6 @@ class CollisionSystem:
         for other in bullets:
             if other is bullet:
                 continue
-            if bullet.rect.colliderect(other.rect):
+            if self.rect_collision(bullet.rect, other.rect):
                 return other
         return None
