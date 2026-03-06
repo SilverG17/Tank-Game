@@ -191,9 +191,9 @@ class SelectState(BaseState):
             p2_gun_img.fill(p2_color, special_flags=pygame.BLEND_MULT)
 
         # ===== PREVIEW POSITION =====
-        x1 = width // 2 - 200
-        x2 = width // 2 + 200
-        y = 420
+        x1 = width // 2 - 250
+        x2 = width // 2 + 250
+        y = 460
 
         # ===== OFFSET (same system as Tank class) =====
         offset_p1 = pygame.Vector2(TURRET_OFFSETS[self.p1_hull])
@@ -211,7 +211,6 @@ class SelectState(BaseState):
         # =====================================
         # PLAYER 1
         # =====================================
-
         # rotate hull
         p1_hull_rot = pygame.transform.rotate(p1_hull_img, -hull_angle)
         surface.blit(p1_hull_rot, p1_hull_rot.get_rect(center=(x1, y)))
@@ -227,7 +226,6 @@ class SelectState(BaseState):
         # =====================================
         # PLAYER 2
         # =====================================
-
         p2_hull_rot = pygame.transform.rotate(p2_hull_img, -hull_angle)
         surface.blit(p2_hull_rot, p2_hull_rot.get_rect(center=(x2, y)))
 

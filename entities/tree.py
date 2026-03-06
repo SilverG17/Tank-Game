@@ -1,6 +1,5 @@
 import pygame
 
-
 class Tree:
     def __init__(self, gx, gy, tile_size, image):
         self.gx = gx
@@ -22,11 +21,11 @@ class Tree:
 
     def take_damage(self, amount=1):
         self.health -= amount
-        return self.health <= 0  # True nếu cây chết
+        return self.health <= 0  
 
     def draw(self, surface):
         alpha = int((self.health / self.max_health) * 255)
-        img = self.image.copy()   # copy mới mỗi frame
+        img = self.image.copy()   
         img.set_alpha(alpha)
         surface.blit(img, self.pos)
 

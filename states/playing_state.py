@@ -174,8 +174,7 @@ class PlayingState(BaseState):
                 if tank != bullet.owner:
                     if bullet.get_hitbox().colliderect(tank.get_hitbox()):
                         if not tank.has_shield:
-                            tank.health -= 10
-                            tank.flash_timer = 0.3
+                            tank.take_damage(10)
 
                             # thưởng điểm cho người bắn (nếu muốn)
                             bullet.owner.point += 15

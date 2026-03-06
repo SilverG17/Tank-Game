@@ -122,10 +122,10 @@ class Game:
         # ==============================
         # Fonts
         # ==============================
-        self.font_title = pygame.font.SysFont("Impact", 100)
-        self.font_big = pygame.font.SysFont("Impact", 30)
-        self.font_main = pygame.font.SysFont("Arial", 20, bold=True)
-        self.font_small = pygame.font.SysFont("Arial", 16, bold=True)
+        self.font_title = self.assets.load_font("Orbitron\static\Orbitron-ExtraBold.ttf", 90)
+        self.font_big   = self.assets.load_font("Orbitron\static\Orbitron-SemiBold.ttf", 36)
+        self.font_main  = self.assets.load_font("Orbitron\static\Orbitron-Medium.ttf", 22)
+        self.font_small = self.assets.load_font("Orbitron\static\Orbitron-Regular.ttf", 16)
 
         # ==============================
         # Initial State

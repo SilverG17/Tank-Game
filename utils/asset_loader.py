@@ -2,8 +2,9 @@ import pygame
 import os
 
 class AssetLoader:
-    def __init__(self, base_path="image"):
+    def __init__(self, base_path="image", fonts_path="fonts"):
         self.base_path = base_path
+        self.fonts_path = fonts_path
         self.images = {}
         self.fonts = {}
 
@@ -37,7 +38,7 @@ class AssetLoader:
         key = (filename, size)
         if key in self.fonts:
             return self.fonts[key]
-        path = os.path.join(self.base_path, filename)
+        path = os.path.join(self.fonts_path, filename)
         font = pygame.font.Font(path, size)
         self.fonts[key] = font
         return font

@@ -3,7 +3,7 @@ import math
 
 from utils.helpers import key_pressed
 from entities.bullet import Bullet
-from constants import TURRET_OFFSETS
+from constants import TURRET_OFFSETS, COLORS
 
 class Tank:
     def __init__(
@@ -91,8 +91,30 @@ class Tank:
         self.rect = self.hull.get_rect(center=self.pos)
 
     # =========================================================
+    # DAMAGE
+    # =========================================================
+    def take_damage(self, damage):
+        if not self.alive:
+            return
+
+        if self.has_shield:
+            return
+
+        self.health -= damage
+        self.flash_timer = 0.15 
+
+        if self.health <= 0:
+            self.health = 0
+            self.alive = False
+            self.exploding = True
+            self.explosion_timer = 0
+
+    # =========================================================
     # COLLISION
     # =========================================================
+    def get_hitbox(self):
+        return self.rect.inflate(-20, 0)
+
     def check_collision(self, next_pos, trees):
         if not self.bounds_rect.collidepoint(next_pos):
             return False
@@ -257,9 +279,34 @@ class Tank:
             rect = frame.get_rect(center=self.pos)
             surface.blit(frame, rect)
             return
+        
+        # Flash effect when hit
+        hull_img = self.hull
+        gun_img = self.gun
+
+        if self.flash_timer > 0:
+            hull_img = self.hull.copy()
+            hull_img.fill(COLORS.WHITE, special_flags=pygame.BLEND_ADD)
+
+            gun_img = self.gun.copy()
+            gun_img.fill(COLORS.WHITE, special_flags=pygame.BLEND_ADD)
+
+        # ===== SHADOW =====
+        shadow_surface = pygame.Surface((40, 30), pygame.SRCALPHA)
+
+        pygame.draw.ellipse(
+            shadow_surface,
+            (0,0,0,70),
+            (0,0,40,30)
+        )
+
+        surface.blit(
+            shadow_surface,
+            (self.pos.x - 19, self.pos.y - 15)
+        )
 
         # ===== HULL =====
-        h_rot = pygame.transform.rotate(self.hull, -self.hull_angle)
+        h_rot = pygame.transform.rotate(hull_img, -self.hull_angle)
         h_rect = h_rot.get_rect(center=self.pos)
         surface.blit(h_rot, h_rect)
 
@@ -271,21 +318,18 @@ class Tank:
         gun_world_angle = self.hull_angle + self.turret_angle
 
         # ===== DRAW GUN =====
-        g_rot = pygame.transform.rotate(self.gun, -gun_world_angle)
+        g_rot = pygame.transform.rotate(gun_img, -gun_world_angle)
         g_rect = g_rot.get_rect(center=gun_pos)
 
         surface.blit(g_rot, g_rect)
 
         # ===== POWERUP EFFECTS =====
         if self.has_shield:
-            pygame.draw.circle(surface, (0, 255, 255),
+            pygame.draw.circle(surface, COLORS.CYAN,
                                (int(self.pos.x), int(self.pos.y)), 35, 2)
         if self.speed_boost > 1.0:
-            pygame.draw.circle(surface, (255, 255, 0),
+            pygame.draw.circle(surface, COLORS.YELLOW,
                                (int(self.pos.x), int(self.pos.y)), 30, 1)
 
         if not self.alive:
             return
-        
-    def get_hitbox(self):
-        return self.rect.inflate(-20, 0)
