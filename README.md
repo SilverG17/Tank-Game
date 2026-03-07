@@ -195,6 +195,8 @@ pip install pygame
 python main.py
 ```
 
+Or simply run Tank_Battle.exe
+
 ---
 
 ## 📚 Learning Objectives
