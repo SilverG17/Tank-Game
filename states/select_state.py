@@ -1,7 +1,9 @@
 import pygame
 
 from states.base_state import BaseState
-from states.playing_state import PlayingState
+from states.versus_state import VersusState
+from states.cutscene_state import CutsceneState
+from states.coop_state import CoopState
 from constants import TURRET_OFFSETS, TANK_COLORS, COLORS
 
 class SelectState(BaseState):
@@ -24,14 +26,12 @@ class SelectState(BaseState):
 
         self.max_colors = len(TANK_COLORS)
         self.max_styles = len(self.game.TANK_HULLS)
-
-        # ===== Selection cursor =====
-        # 0 = P1 Hull
-        # 1 = P1 Gun
-        # 2 = P2 Hull
-        # 3 = P2 Gun
         self.cursor = 0
         self.preview_angle = 0
+
+        # ===== Campaign settings =====
+        self.enemy_count = 1
+        self.max_enemies = 5
 
     # ======================================
     # INPUT
@@ -46,14 +46,16 @@ class SelectState(BaseState):
                     from states.start_state import StartState
                     self.game.change_state(StartState(self.game))
                 if event.key == pygame.K_UP:
-                    self.cursor = (self.cursor - 1) % 6
+                    max_cursor = 6 if self.game.mode == "VERSUS" or self.game.mode == "COOP" else 4
+                    self.cursor = (self.cursor - 1) % max_cursor
                 if event.key == pygame.K_DOWN:
-                    self.cursor = (self.cursor + 1) % 6
+                    max_cursor = 6 if self.game.mode == "VERSUS" or self.game.mode == "COOP" else 4
+                    self.cursor = (self.cursor + 1) % max_cursor
                 if event.key == pygame.K_LEFT:
                     self.change_style(-1)
                 if event.key == pygame.K_RIGHT:
                     self.change_style(1)
-                if event.key == pygame.K_RETURN:
+                if event.key == pygame.K_SPACE:
                     self.start_game()
 
     # ======================================
@@ -61,6 +63,29 @@ class SelectState(BaseState):
     # ======================================
     def change_style(self, direction):
 
+        # ===== CAMPAIGN MODE =====
+        if self.game.mode == "CAMPAIGN":
+
+            if self.cursor == 0:
+                self.p1_hull = (self.p1_hull + direction) % self.max_styles
+
+            elif self.cursor == 1:
+                self.p1_gun = (self.p1_gun + direction) % self.max_styles
+
+            elif self.cursor == 2:
+                self.p1_color = (self.p1_color + direction) % self.max_colors
+
+            elif self.cursor == 3:
+                self.enemy_count += direction
+
+                if self.enemy_count < 1:
+                    self.enemy_count = self.max_enemies
+                elif self.enemy_count > self.max_enemies:
+                    self.enemy_count = 1
+
+            return
+
+        # ===== VERSUS MODE =====
         if self.cursor == 0:
             self.p1_hull = (self.p1_hull + direction) % self.max_styles
 
@@ -83,17 +108,29 @@ class SelectState(BaseState):
     # START GAME
     # ======================================
     def start_game(self):
-
         # Save selections into Game
-        self.game.p1_hull_style = self.p1_hull
-        self.game.p1_gun_style = self.p1_gun
-        self.game.p1_color = TANK_COLORS[self.p1_color][1]
+        self.game.player_styles[1] = {
+            "hull": self.p1_hull,
+            "gun": self.p1_gun,
+            "color": TANK_COLORS[self.p1_color][1]
+        }
 
-        self.game.p2_hull_style = self.p2_hull
-        self.game.p2_gun_style = self.p2_gun
-        self.game.p2_color = TANK_COLORS[self.p2_color][1]
+        self.game.player_styles[2] = {
+            "hull": self.p2_hull,
+            "gun": self.p2_gun,
+            "color": TANK_COLORS[self.p2_color][1]
+        }
 
-        self.game.change_state(PlayingState(self.game))
+        if self.game.mode == "VERSUS":
+            self.game.change_state(VersusState(self.game))
+
+        elif self.game.mode == "CAMPAIGN":
+            self.game.enemy_count = self.enemy_count
+            self.game.change_state(CutsceneState(self.game))
+
+        elif self.game.mode == "COOP":
+            self.game.enemy_count = self.enemy_count
+            self.game.change_state(CoopState(self.game))
 
     # ======================================
     # UPDATE
@@ -127,14 +164,22 @@ class SelectState(BaseState):
         )
 
         # OPTIONS
-        options = [
-            f"P1 Hull  : {self.p1_hull + 1}",
-            f"P1 Gun   : {self.p1_gun + 1}",
-            f"P1 Color : {TANK_COLORS[self.p1_color][0]}",
-            f"P2 Hull  : {self.p2_hull + 1}",
-            f"P2 Gun   : {self.p2_gun + 1}",
-            f"P2 Color : {TANK_COLORS[self.p2_color][0]}",
-        ]
+        if self.game.mode == "VERSUS" or self.game.mode == "COOP":
+            options = [
+                f"P1 Hull  : {self.p1_hull + 1}",
+                f"P1 Gun   : {self.p1_gun + 1}",
+                f"P1 Color : {TANK_COLORS[self.p1_color][0]}",
+                f"P2 Hull  : {self.p2_hull + 1}",
+                f"P2 Gun   : {self.p2_gun + 1}",
+                f"P2 Color : {TANK_COLORS[self.p2_color][0]}",
+            ]
+        else:
+            options = [
+                f"Hull    : {self.p1_hull + 1}",
+                f"Gun     : {self.p1_gun + 1}",
+                f"Color   : {TANK_COLORS[self.p1_color][0]}",
+                f"Enemies : {self.enemy_count}",
+            ]
 
         start_y = 220
 
@@ -154,7 +199,7 @@ class SelectState(BaseState):
 
         # INSTRUCTION
         hint = self.game.font_small.render(
-            "UP/DOWN select | LEFT/RIGHT change | ENTER start | ESC back",
+            "UP/DOWN select | LEFT/RIGHT change | SPACE start | ESC back",
             True,
             COLORS.GRAY
         )
@@ -168,7 +213,7 @@ class SelectState(BaseState):
     # TANK PREVIEW
     # ======================================
     def draw_preview(self, surface):
-
+        preview_scale = 0.2
         width = surface.get_width()
 
         # ===== PLAYER 1 DATA =====
@@ -176,10 +221,36 @@ class SelectState(BaseState):
         p1_hull_img = self.game.TANK_HULLS[self.p1_hull].copy()
         p1_gun_img = self.game.TANK_GUNS[self.p1_gun].copy()
 
+        hull_size = (
+            int(p1_hull_img.get_width() * preview_scale),
+            int(p1_hull_img.get_height() * preview_scale)
+        )
+
+        gun_size = (
+            int(p1_gun_img.get_width() * preview_scale),
+            int(p1_gun_img.get_height() * preview_scale)
+        )
+
+        p1_hull_img = pygame.transform.smoothscale(p1_hull_img, hull_size)
+        p1_gun_img = pygame.transform.smoothscale(p1_gun_img, gun_size)
+
         # ===== PLAYER 2 DATA =====
         p2_color = TANK_COLORS[self.p2_color][1]
         p2_hull_img = self.game.TANK_HULLS[self.p2_hull].copy()
         p2_gun_img = self.game.TANK_GUNS[self.p2_gun].copy()
+
+        hull_size = (
+            int(p2_hull_img.get_width() * preview_scale),
+            int(p2_hull_img.get_height() * preview_scale)
+        )
+
+        gun_size = (
+            int(p2_gun_img.get_width() * preview_scale),
+            int(p2_gun_img.get_height() * preview_scale)
+        )
+
+        p2_hull_img = pygame.transform.smoothscale(p2_hull_img, hull_size)
+        p2_gun_img = pygame.transform.smoothscale(p2_gun_img, gun_size)
 
         # ===== APPLY COLOR =====
         if p1_color is not None:
@@ -196,17 +267,14 @@ class SelectState(BaseState):
         y = 460
 
         # ===== OFFSET (same system as Tank class) =====
-        offset_p1 = pygame.Vector2(TURRET_OFFSETS[self.p1_hull])
-        offset_p2 = pygame.Vector2(TURRET_OFFSETS[self.p2_hull])
+        offset_p1 = pygame.Vector2(TURRET_OFFSETS[self.p1_hull]) * preview_scale
+        offset_p2 = pygame.Vector2(TURRET_OFFSETS[self.p2_hull]) * preview_scale
 
         hull_angle = self.preview_angle
         gun_angle = self.preview_angle
 
         p1_label = self.game.font_small.render("PLAYER 1", True, COLORS.WHITE)
         surface.blit(p1_label, p1_label.get_rect(center=(x1, y + 90)))
-
-        p2_label = self.game.font_small.render("PLAYER 2", True, COLORS.WHITE)
-        surface.blit(p2_label, p2_label.get_rect(center=(x2, y + 90)))
 
         # =====================================
         # PLAYER 1
@@ -226,11 +294,15 @@ class SelectState(BaseState):
         # =====================================
         # PLAYER 2
         # =====================================
-        p2_hull_rot = pygame.transform.rotate(p2_hull_img, -hull_angle)
-        surface.blit(p2_hull_rot, p2_hull_rot.get_rect(center=(x2, y)))
+        if self.game.mode == "VERSUS" or self.game.mode == "COOP":
+            p2_hull_rot = pygame.transform.rotate(p2_hull_img, -hull_angle)
+            surface.blit(p2_hull_rot, p2_hull_rot.get_rect(center=(x2, y)))
 
-        offset = offset_p2.rotate(hull_angle)
-        gun_pos = (x2 + offset.x, y + offset.y)
+            offset = offset_p2.rotate(hull_angle)
+            gun_pos = (x2 + offset.x, y + offset.y)
 
-        p2_gun_rot = pygame.transform.rotate(p2_gun_img, -gun_angle)
-        surface.blit(p2_gun_rot, p2_gun_rot.get_rect(center=gun_pos))
+            p2_gun_rot = pygame.transform.rotate(p2_gun_img, -gun_angle)
+            surface.blit(p2_gun_rot, p2_gun_rot.get_rect(center=gun_pos))
+
+            p2_label = self.game.font_small.render("PLAYER 2", True, COLORS.WHITE)
+            surface.blit(p2_label, p2_label.get_rect(center=(x2, y + 90)))

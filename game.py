@@ -6,10 +6,12 @@ from systems.input_handler import InputHandler
 from systems.audio_manager import AudioManager
 from systems.collision import CollisionSystem
 from systems.particle_system import ParticleSystem
+from systems.camera import Camera
+from systems.tile_map import TileMap
 from states.start_state import StartState
 from utils.asset_loader import AssetLoader
+from utils.debug import Debug
 from constants import TILE_SIZE, WIDTH, HEIGHT
-from systems.tile_map import TileMap
 
 class Game:
     def __init__(self, screen):
@@ -25,11 +27,21 @@ class Game:
         self.audio = AudioManager()
         self.collision = CollisionSystem()
         self.particles = ParticleSystem()
+        self.debug = Debug(self)
+        self.clock = pygame.time.Clock()
         self.render_surface = pygame.Surface((WIDTH, HEIGHT))
+        self.camera = Camera()
         self.player_styles = {
-            1: {"hull": 0, "gun": 0, "color": 0},
-            2: {"hull": 0, "gun": 0, "color": 0},
+            1: {"hull": 0, "gun": 0, "color": None},
+            2: {"hull": 0, "gun": 0, "color": None},
         }
+
+        # ==============================
+        # Game mode system
+        # ==============================
+        self.modes = ["VERSUS", "CAMPAIGN", "COOP"]
+        self.mode_index = 0
+        self.mode = self.modes[self.mode_index]
 
         # ==============================
         # Assets
@@ -49,19 +61,16 @@ class Game:
         self.GAMEOVER_BG = self.assets.load_image(
             "Background/GameOver_bg.png"
         )
+        self.VICTORY_BG = self.assets.load_image(
+            "Background/Victory_bg.png"
+        )
 
         # Load all tank sprites
         self.TANK_HULLS = []
         self.TANK_GUNS = []
         for i in range(1, 9):
-            hull = self.assets.load_image(
-                f"Tank/hull_{i:02}.png",
-                scale=(TILE_SIZE, TILE_SIZE)
-            )
-            gun = self.assets.load_image(
-                f"Tank/gun_{i:02}.png",
-                scale=(TILE_SIZE * 0.6, TILE_SIZE * 0.6)
-            )
+            hull = self.assets.load_image(f"Tank/hull_{i:02}.png",)
+            gun = self.assets.load_image(f"Tank/gun_{i:02}.png",)
             self.TANK_HULLS.append(hull)
             self.TANK_GUNS.append(gun)
 
@@ -74,8 +83,8 @@ class Game:
             scale=(TILE_SIZE , TILE_SIZE)
         )
         self.POWERUP_IMG = {
-            "SPEED": self.assets.load_image("speed.png", scale=(64, 64)),
-            "SHIELD": self.assets.load_image("shield.png", scale=(64, 64)),
+            "SPEED": self.assets.load_image("speed.png", scale=(32, 32)),
+            "SHIELD": self.assets.load_image("shield.png", scale=(32, 32)),
             "TRIPLE": self.assets.load_image("triple.png", scale=(32, 32)),
         }
         self.COIN_IMG = self.assets.load_image("coin.png", scale=(32, 32))
@@ -139,10 +148,14 @@ class Game:
         self.audio.load_sfx("hit.mp3", 0.7)
         self.audio.load_sfx("coin.mp3", 0.6)
         self.audio.load_sfx("bounce.mp3", 0.4)
+        self.audio.load_sfx("get_hit.mp3", 0.3)
         self.audio.load_sfx("nop.mp3", 0.6)
         self.audio.load_sfx("explosion.mp3", 0.6)
+        self.audio.load_sfx("cutscene.mp3", 0.5)
         self.music_main = "bg_music.mp3"
+        self.music_boss = "boss_spawn.mp3"
         self.music_gameover = "GameOver.mp3"
+        self.music_victory = "Victory.mp3"
         self.audio.load_music(self.music_main, volume=0.2, loop=True)
         self.audio.set_music_volume(self.config.get_music_volume())
         self.audio.set_sfx_volume(self.config.get_sfx_volume())
@@ -179,6 +192,7 @@ class Game:
     def update(self, dt):
         self.state.update(dt)
         self.particles.update(dt)
+        self.camera.update(dt)
 
     # ==================================
     # Draw

@@ -6,27 +6,17 @@ from game import Game
 
 def main():
     pygame.init()
-
     game = Game(None)
-
-    clock = pygame.time.Clock()
-
     while game.running:
-        dt = clock.tick(FPS) / 1000
-
+        dt = game.clock.tick(FPS) / 1000
         events = pygame.event.get()
         game.state.handle_events(events)
-
         game.input.update()
-
         if game.input.quit_requested:
             game.running = False
-
         game.update(dt)
         game.draw()
-
         pygame.display.flip()
-
     pygame.quit()
     sys.exit()
 

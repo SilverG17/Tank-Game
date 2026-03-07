@@ -206,3 +206,9 @@ This project demonstrates:
 - Frame-rate independent motion
 - Real-time particle simulation
 - Modular game state architecture
+
+## Assets Source
+
+Tank: https://free-game-assets.itch.io/free-2d-tank-game-assets
+Tile: https://kenney-assets.itch.io/top-down-tanks-redux
+Sound: https://www.myinstants.com/en/categories/memes/us/

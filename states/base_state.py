@@ -2,6 +2,9 @@ class BaseState:
     def __init__(self, game):
         self.game = game
 
+    def reset(self):
+        pass
+
     def handle_events(self, events):
         pass
 

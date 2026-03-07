@@ -12,14 +12,14 @@ class Tank:
         controls,
         color,
         name,
-        hull_style,
-        gun_style,
+        turret_offset,
         images,
         tile_size,
         level_map,
         bounds_rect,
         game,
-        start_angle = 0
+        start_angle=0,
+        scale = 0.2
     ):
         self.pos = pygame.Vector2(pos)
         self.controls = controls
@@ -27,16 +27,16 @@ class Tank:
         self.game = game
         self.tile_size = tile_size
         self.level_map = level_map
+        self.scale = scale
         self.bounds_rect = bounds_rect
         self.max_health = 100
-        self.health = 100
-        self.turret_offset = pygame.Vector2(TURRET_OFFSETS[hull_style])
+        self.turret_offset = pygame.Vector2(turret_offset) * scale
 
         # ===== Life State =====
         self.alive = True
         self.exploding = False
         self.explosion_timer = 0
-        self.explosion_duration = 2.0
+        self.explosion_duration = 1.0
         self.explosion_frame = 0
 
         # ===== Stats =====
@@ -59,7 +59,7 @@ class Tank:
         self.last_shot_time = 0
 
         # ===== Images =====
-        scale_factor = 0.8  
+        scale_factor = scale
 
         hull_size = (
             int(images["hull"].get_width() * scale_factor),
@@ -150,60 +150,57 @@ class Tank:
     # UPDATE
     # =========================================================
     def update(self, dt, keys, sensitivity, trees):
+        # Handle explosion animation when dead
+        if not self.alive:
+            if self.exploding:
+                self.explosion_timer += dt
+                frame_count = len(self.game.EXPLOSION_FRAMES)
+                self.explosion_frame = int(
+                    (self.explosion_timer / self.explosion_duration) * frame_count
+                )
+                if self.explosion_frame >= frame_count:
+                    self.explosion_frame = frame_count - 1
+            return
+        
         if self.flash_timer > 0:
             self.flash_timer -= dt
 
-        # Explosion update
-        if self.exploding:
-            self.explosion_timer += dt
+        if self.controls and keys:
+            # Rotation for base
+            if key_pressed(keys, self.controls['left']):
+                self.hull_angle -= sensitivity * dt
+            if key_pressed(keys, self.controls['right']):
+                self.hull_angle += sensitivity * dt
 
-            frame_count = len(self.game.EXPLOSION_FRAMES)
+            # Rotation for gun
+            gun_rotate_speed = sensitivity * dt
+            if key_pressed(keys, self.controls['gun_left']):
+                self.turret_angle -= gun_rotate_speed
+            if key_pressed(keys, self.controls['gun_right']):
+                self.turret_angle += gun_rotate_speed
 
-            self.explosion_frame = int(
-                (self.explosion_timer / self.explosion_duration) * frame_count
-            )
+            rad = math.radians(self.hull_angle - 90)
+            move_vec = pygame.Vector2(0, 0)
+            if key_pressed(keys, self.controls['up']):
+                move_vec = pygame.Vector2(math.cos(rad), math.sin(rad))
 
-            if self.explosion_frame >= frame_count:
-                self.explosion_frame = frame_count - 1
+            elif key_pressed(keys, self.controls['down']):
+                move_vec = pygame.Vector2(-math.cos(rad), -math.sin(rad))
+            if move_vec.length() > 0:
+                move_vec = move_vec.normalize()
+                velocity = move_vec * (160 * self.speed_boost) * dt
 
-        if not self.alive:
-            return
+                # --- Move X axis first ---
+                new_pos_x = pygame.Vector2(self.pos.x + velocity.x, self.pos.y)
+                if self.check_collision(new_pos_x, trees):
+                    self.pos.x = new_pos_x.x
 
-        # Rotation for base
-        if key_pressed(keys, self.controls['left']):
-            self.hull_angle -= sensitivity * dt
-        if key_pressed(keys, self.controls['right']):
-            self.hull_angle += sensitivity * dt
+                # --- Then move Y axis ---
+                new_pos_y = pygame.Vector2(self.pos.x, self.pos.y + velocity.y)
+                if self.check_collision(new_pos_y, trees):
+                    self.pos.y = new_pos_y.y
 
-        # Rotation for gun
-        gun_rotate_speed = sensitivity * dt
-        if key_pressed(keys, self.controls['gun_left']):
-            self.turret_angle -= gun_rotate_speed
-        if key_pressed(keys, self.controls['gun_right']):
-            self.turret_angle += gun_rotate_speed
-
-        rad = math.radians(self.hull_angle - 90)
-        move_vec = pygame.Vector2(0, 0)
-        if key_pressed(keys, self.controls['up']):
-            move_vec = pygame.Vector2(math.cos(rad), math.sin(rad))
-
-        elif key_pressed(keys, self.controls['down']):
-            move_vec = pygame.Vector2(-math.cos(rad), -math.sin(rad))
-        if move_vec.length() > 0:
-            move_vec = move_vec.normalize()
-            velocity = move_vec * (160 * self.speed_boost) * dt
-
-            # --- Move X axis first ---
-            new_pos_x = pygame.Vector2(self.pos.x + velocity.x, self.pos.y)
-            if self.check_collision(new_pos_x, trees):
-                self.pos.x = new_pos_x.x
-
-            # --- Then move Y axis ---
-            new_pos_y = pygame.Vector2(self.pos.x, self.pos.y + velocity.y)
-            if self.check_collision(new_pos_y, trees):
-                self.pos.y = new_pos_y.y
-
-            self.rect.center = self.pos
+                self.rect.center = self.pos
 
         # Update powerup timers
         for key in self.powerup_timers:
@@ -276,8 +273,15 @@ class Tank:
         # ===== EXPLOSION =====
         if self.exploding:
             frame = self.game.EXPLOSION_FRAMES[self.explosion_frame]
-            rect = frame.get_rect(center=self.pos)
-            surface.blit(frame, rect)
+
+            # scale explosion based on tank size
+            w = int(frame.get_width() * self.scale * 6)
+            h = int(frame.get_height() * self.scale * 6)
+
+            frame_scaled = pygame.transform.scale(frame, (w, h))
+
+            rect = frame_scaled.get_rect(center=self.pos)
+            surface.blit(frame_scaled, rect)
             return
         
         # Flash effect when hit

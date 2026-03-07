@@ -88,3 +88,19 @@ class AudioManager:
     def set_music_volume(self, volume):
         self.music_volume = volume
         pygame.mixer.music.set_volume(volume)
+
+    # ==========================================
+    # STOP MUSIC
+    # ==========================================
+    def stop_music(self):
+        if self.music_loaded:
+            pygame.mixer.music.stop()
+            self.music_loaded = False
+
+    # ==========================================
+    # STOP SFX
+    # ==========================================
+    def stop_sfx(self, name):
+        data = self.sounds.get(name)
+        if data:
+            data["sound"].stop()

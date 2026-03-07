@@ -3,7 +3,8 @@ import os
 import random
 
 from states.base_state import BaseState
-from states.playing_state import PlayingState
+from states.versus_state import VersusState
+from states.campaign_state import CampaignState
 from states.select_state import SelectState
 from systems.tile_map import TileMap 
 from constants import COLORS
@@ -45,11 +46,26 @@ class StartState(BaseState):
                     self.game.selected_map_index -= 1
                     if self.game.selected_map_index < 0:
                         self.game.selected_map_index = total_maps - 1
+                
                 elif event.key == pygame.K_RIGHT:
-                    self.game.selected_map_index += 1
+                    self.game.selected_map_index +=1
                     if self.game.selected_map_index >= total_maps:
                         self.game.selected_map_index = 0
+
+                elif event.key == pygame.K_UP:
+                    self.game.mode_index -= 1
+                    if self.game.mode_index < 0:
+                        self.game.mode_index = len(self.game.modes) - 1
+
+                elif event.key == pygame.K_DOWN:
+                    self.game.mode_index += 1
+                    if self.game.mode_index >= len(self.game.modes):
+                        self.game.mode_index = 0
+
                 elif event.key == pygame.K_SPACE:
+                    # CHANGE STATE BASED ON MODE
+                    self.game.mode = self.game.modes[self.game.mode_index]
+
                     if self.game.selected_map_index == 0:
                         selected_path = random.choice(self.game.map_files)
                     else:
@@ -57,6 +73,7 @@ class StartState(BaseState):
                     self.game.level_map = self.game.load_map(selected_path)
                     self.game.tile_map = TileMap(self.game)
                     self.game.change_state(SelectState(self.game))
+
                 elif event.key == pygame.K_c:
                     from states.Config_state import ConfigState
                     self.game.change_state(ConfigState(self.game))
@@ -83,20 +100,13 @@ class StartState(BaseState):
         surface.blit(self.MAIN_BG, (0, 0))
         width = surface.get_width()
         height = surface.get_height()
-
         overlay = pygame.Surface((width, height), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 120))
         surface.blit(overlay, (0, 0))
-
         title = self.title_font.render(
-            "TANK BATTLE", True, COLORS.YELLOW
+            "TANK BATTLE", True, COLORS.GOLD
         )
-
-        surface.blit(
-            title,
-            (width // 2 - title.get_width() // 2,
-            60)
-        )
+        surface.blit(title, (width // 2 - title.get_width() // 2, 40))
 
         # ==========================
         # START TEXT
@@ -106,40 +116,24 @@ class StartState(BaseState):
             True,
             COLORS.WHITE
         )
-
-        surface.blit(
-            subtitle,
-            (width // 2 - subtitle.get_width() // 2,
-            500)
-        )
+        surface.blit(subtitle, (width // 2 - subtitle.get_width() // 2, 540))
 
         # ==========================
-        # CONFIG TEXT
+        # MODE TEXT
         # ==========================
-        config_text = self.game.font_small.render(
-            "PRESS C TO CONFIGURE CONTROLS",
+        mode_text = self.subtitle_font.render(
+            f"MODE: {self.game.modes[self.game.mode_index]}",
             True,
-            COLORS.CYAN
+            COLORS.RED
         )
+        surface.blit(mode_text, (width // 2 - mode_text.get_width() // 2, 150))
 
-        surface.blit(
-            config_text,
-            (width // 2 - config_text.get_width() // 2, 540)
+        mode_hint = self.game.font_small.render(
+            "UP / DOWN to change mode",
+            True,
+            COLORS.GRAY
         )
-
-        # ==========================
-        # MAP PREVIEW 
-        # ==========================
-        if self.game.selected_map_index == 0:
-            preview = self.game.RANDOM_PREVIEW
-        else:
-            preview = self.game.map_previews[self.game.selected_map_index - 1]
-        if preview:
-            surface.blit(
-                preview,
-                (width // 2 - preview.get_width() // 2,
-                230)
-            )
+        surface.blit(mode_hint, (width // 2 - mode_hint.get_width() // 2, 190))
 
         # ==========================
         # MAP NAME
@@ -152,13 +146,34 @@ class StartState(BaseState):
         map_text = self.subtitle_font.render(
             f"MAP: {map_name}",
             True,
+            COLORS.BLUE
+        )
+        surface.blit(map_text, (width // 2 - map_text.get_width() // 2, 210))
+
+        map_hint = self.game.font_small.render(
+            "LEFT / RIGHT to change map",
+            True,
+            COLORS.GRAY
+        )
+        surface.blit(map_hint, (width // 2 - map_hint.get_width() // 2, 250))
+
+        # ==========================
+        # MAP PREVIEW 
+        # ==========================
+        if self.game.selected_map_index == 0:
+            preview = self.game.RANDOM_PREVIEW
+        else:
+            preview = self.game.map_previews[self.game.selected_map_index - 1]
+        if preview:
+            surface.blit(preview, (width // 2 - preview.get_width() // 2, 280))
+
+        # ==========================
+        # CONFIG TEXT
+        # ==========================
+        config_text = self.game.font_small.render(
+            "PRESS C TO CONFIGURE CONTROLS",
+            True,
             COLORS.CYAN
         )
-
-        surface.blit(
-            map_text,
-            (width // 2 - map_text.get_width() // 2,
-            180)
-        )
-
+        surface.blit(config_text, (width // 2 - config_text.get_width() // 2, 590))
         surface.blit(self.CONFIG_IMG, self.config_rect)

@@ -5,14 +5,19 @@ from constants import COLORS
 class GameOverState(BaseState):
     def __init__(self, game):
         super().__init__(game)
-        self.game.audio.load_music(
-            self.game.music_gameover,
-            volume=0.3,
-            loop=True
-        )
-        self.GAMEOVER_BG = game.GAMEOVER_BG
-        self.GAMEOVER_BG = pygame.transform.scale(
-            self.GAMEOVER_BG,
+        if self.game.mode == "CAMPAIGN" and self.game.winner == "PLAYER":
+            pass
+        else:
+            self.game.audio.load_music(self.game.music_gameover, volume=0.3, loop=True)
+
+        # Choose background
+        if self.game.mode == "CAMPAIGN" and self.game.winner == "PLAYER":
+            bg = game.VICTORY_BG
+        else:
+            bg = game.GAMEOVER_BG
+
+        self.bg = pygame.transform.scale(
+            bg,
             (game.screen.get_width(), game.screen.get_height())
         )
 
@@ -27,9 +32,20 @@ class GameOverState(BaseState):
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
-                    from states.playing_state import PlayingState
+                    if self.game.mode == "VERSUS":
+                        from states.versus_state import VersusState
+                        next_state = VersusState(self.game)
+
+                    elif self.game.mode == "CAMPAIGN":
+                        from states.campaign_state import CampaignState
+                        next_state = CampaignState(self.game)
+
+                    elif self.game.mode == "COOP":
+                        from states.coop_state import CoopState
+                        next_state = CoopState(self.game)
+
                     self.game.audio.load_music(self.game.music_main, volume=0.2, loop=True)
-                    self.game.change_state(PlayingState(self.game))
+                    self.game.change_state(next_state)
 
                 if event.key == pygame.K_ESCAPE:
                     from states.start_state import StartState
@@ -46,7 +62,7 @@ class GameOverState(BaseState):
     # DRAW
     # ==========================================
     def draw(self, surface):
-        surface.blit(self.GAMEOVER_BG, (0, 0))
+        surface.blit(self.bg, (0, 0))
         width = surface.get_width()
         height = surface.get_height()
 
@@ -54,7 +70,13 @@ class GameOverState(BaseState):
         overlay.fill((0, 0, 0, 120))
         surface.blit(overlay, (0, 0))
 
-        winner_text = f"{self.game.winner} IS THE VICTOR"
+        if self.game.mode == "CAMPAIGN":
+            if self.game.winner == "PLAYER":
+                winner_text = "YOU WIN"
+            else:
+                winner_text = "YOU LOSE TO A BOT"
+        else:
+            winner_text = f"{self.game.winner} IS THE VICTOR"
 
         title = self.game.font_title.render(
             winner_text,
