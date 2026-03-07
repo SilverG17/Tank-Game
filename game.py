@@ -83,8 +83,8 @@ class Game:
             scale=(TILE_SIZE , TILE_SIZE)
         )
         self.POWERUP_IMG = {
-            "SPEED": self.assets.load_image("speed.png", scale=(32, 32)),
-            "SHIELD": self.assets.load_image("shield.png", scale=(32, 32)),
+            "SPEED": self.assets.load_image("speed.png", scale=(48, 48)),
+            "SHIELD": self.assets.load_image("shield.png", scale=(48, 48)),
             "TRIPLE": self.assets.load_image("triple.png", scale=(32, 32)),
         }
         self.COIN_IMG = self.assets.load_image("coin.png", scale=(32, 32))
