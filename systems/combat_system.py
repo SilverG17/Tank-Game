@@ -4,26 +4,25 @@ from constants import SCORE_LIMIT, TILE_SIZE
 
 def update_bullets(game, bullets, tanks, trees, dt):
     for bullet in bullets[:]:
-        bullet.update(
-            dt,
-            game.level_map,
-            TILE_SIZE,
-            game.screen.get_rect()
-        )
+        bullet.update(dt, game.level_map, TILE_SIZE, game.screen.get_rect())
 
-        # Remove if inactive
         if not bullet.active:
-            bullets.remove(bullet)
+            if bullet in bullets:
+                bullets.remove(bullet)
             continue
 
-        # ===== Bullet vs Tank =====
+        hit = False
+
+        # Bullet vs Tank
         for tank in tanks:
             if not tank.alive:
                 continue
             if tank != bullet.owner:
                 if bullet.get_hitbox().colliderect(tank.get_hitbox()):
+
                     if not tank.has_shield:
                         tank.take_damage(10)
+
                         if tank.exploding:
                             game.audio.play_sfx("explosion.mp3")
                         else:
@@ -31,10 +30,16 @@ def update_bullets(game, bullets, tanks, trees, dt):
 
                         bullet.owner.point += 15
 
-                    bullets.remove(bullet)
-                    continue
+                    if bullet in bullets:
+                        bullets.remove(bullet)
 
-        # ===== Bullet vs Tree =====
+                    hit = True
+                    break
+
+        if hit:
+            continue
+
+        # Bullet vs Tree
         for tree in trees[:]:
             if bullet.get_hitbox().colliderect(tree.get_hitbox()):
                 game.audio.play_sfx("hit.mp3")
@@ -43,8 +48,10 @@ def update_bullets(game, bullets, tanks, trees, dt):
                     trees.remove(tree)
                     game.level_map[tree.gy][tree.gx] = 'g'
 
-                bullets.remove(bullet)
-                continue
+                if bullet in bullets:
+                    bullets.remove(bullet)
+
+                break
 
 def update_powerups(game, powerups, tanks, dt, timer, interval):
     timer += dt
